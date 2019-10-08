@@ -7,12 +7,16 @@ from adsmsg import FulltextUpdate
 import os
 from adsft.utils import TextCleaner
 
+from celery.utils.log import get_task_logger
+#from celery.signals import setup_logging, after_setup_logger, after_setup_task_logger
+
 # ============================= INITIALIZATION ==================================== #
 
 proj_home = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
 app = app_module.ADSFulltextCelery('ads-fulltext', proj_home=proj_home)
 logger = app.logger
 
+logger2 = get_task_logger('celery_logger')
 
 app.conf.CELERY_QUEUES = (
     Queue('check-if-extract', app.exchange, routing_key='check-if-extract'),
@@ -27,6 +31,15 @@ app.conf.CELERY_QUEUES = (
 
 @app.task(queue='check-if-extract')
 def task_check_if_extract(message):
+
+    logger.info("INFO: Does the first logger work?")
+    logger.debug("DEBUG: Does the first logger work?")
+    logger.warn("WARN: Does the first logger work?")
+
+    logger2.info("INFO: Does the second logger work?")
+    logger2.debug("DEBUG: Does the second logger work?")
+    logger2.warn("WARN: Does the second logger work?")
+
     """
     Checks if the file needs to be extracted and pushes to the correct
     extraction queue.
@@ -130,11 +143,11 @@ def task_output_results(msg):
             }
     :return: no return
     """
-    
+
     # Ensure we send unicode normalized trimmed text. Extractors already do this,
     # but we still have some file saved extraction that weren't cleaned.
     msg['body'] = TextCleaner(text=msg['body']).run(translate=False, decode=True, normalise=True, trim=True)
-    
+
     logger.debug('Will forward this record: %s', msg)
     rec = FulltextUpdate(**msg)
     logger.debug("Calling 'app.forward_message' with '%s'", str(rec))
